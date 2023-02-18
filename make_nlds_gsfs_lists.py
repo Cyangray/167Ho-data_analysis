@@ -77,9 +77,9 @@ chi2_lim = [6,9]  #Fitting interval. Limits are included.
 method = 'linear'
 
 #some switches
-load_lists = False
-plot_chis = True
-astro = False
+load_lists = True
+plot_chis = False
+astro = True
 energy_bin = 30
 temp_bin = 7
 
@@ -194,14 +194,13 @@ else:
 
 
 valmatrices = [[],[]]
-vertx_nuc = [[],[]]
 if astro:
     astrovalmatrix = calc_errors_chis(ncrates)
-    header = 'T [GK], best_fit, best_fit-2*sigma, best_fit-sigma, best_fit+sigma, best_fit+2*sigma' 
+    header = 'T [GK], best_fit, best_fit-sigma, best_fit+sigma' 
     np.savetxt('data/generated/ncrates_' + NLD_pathstring + '_whole.txt',astrovalmatrix, header = header)
 
     MACSvalmatrix = calc_errors_chis_MACS(ncrates)
-    header = 'T [GK], best_fit, best_fit-2*sigma, best_fit-sigma, best_fit+sigma, best_fit+2*sigma' 
+    header = 'T [GK], best_fit, best_fit-sigma, best_fit+sigma' 
     np.savetxt('data/generated/MACS_' + NLD_pathstring + '_whole.txt',MACSvalmatrix, header = header)
 
 #Save in best_fits.npy the nld-gsf couple with the least chi2 score
@@ -240,8 +239,8 @@ else:
     least_nld_gsf = [nlds[nldchi_argmin], gsfs[gsfchi_argmin]]
 
 for lst, lab, i in zip([nlds, gsfs], ['nld_' + NLD_pathstring,'gsf_' + NLD_pathstring], [0,1]):
-    valmatrices[i], vertx_nuc[i] = calc_errors_chis(lst)
-    header = 'Energy [MeV], best_fit, best_fit-2*sigma, best_fit-sigma, best_fit+sigma, best_fit+2*sigma, staterr' 
+    valmatrices[i] = calc_errors_chis(lst)
+    header = 'Energy [MeV], best_fit, best_fit-sigma, best_fit+sigma, staterr' 
     writematr = np.c_[valmatrices[i],least_nld_gsf[i].yerr]
     np.savetxt('data/generated/' + lab + '_whole.txt', writematr, header = header)
 np.save('data/generated/best_fits_' + NLD_pathstring + '.npy', least_nld_gsf)

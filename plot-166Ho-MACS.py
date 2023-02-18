@@ -75,25 +75,32 @@ a = readreaclib(nucleus, A, reaclib_file = 'data/ncapture/reaclib')
 val_reaclib = nonsmoker(a, T9range) #rates
 mat_bruslib = np.loadtxt('data/ncapture/bruslib-166Ho')
 
+
 if rates:
     #Import Oslo data, statistical and systematic errors
     Oslo_mat = np.genfromtxt('data/generated/ncrates_' + suffix + '_whole.txt', unpack = True).T
     x_Oslo = Oslo_mat[:,0]
     Oslo_stat = np.loadtxt('data/generated/rate_' + suffix + '_stats.txt')
+    
     #import other models
     x_reaclib = T9range
     x_bruslib = mat_bruslib[:,0]
     val_bruslib = mat_bruslib[:,1]
+    
+    
 else:
     #Import Oslo data, statistical and systematic errors
     Oslo_mat = np.genfromtxt('data/generated/MACS_' + suffix + '_whole.txt', unpack = True).T
     x_Oslo = Oslo_mat[:,0]*k_B #keV
     Oslo_stat = np.loadtxt('data/generated/MACS_' + suffix + '_stats.txt')
+    
     #import other models
     x_reaclib = T9range*k_B
     val_reaclib = rate2MACS(val_reaclib,Ho166_mass,T9range)
     x_bruslib = mat_bruslib[:,0]*k_B
     val_bruslib = rate2MACS(mat_bruslib[:,1],Ho166_mass,mat_bruslib[:,0])
+    
+    
 
 #plot figure
 my_cmap = matplotlib.cm.get_cmap('YlGnBu')
@@ -102,12 +109,9 @@ my_cmap = matplotlib.cm.get_cmap('YlGnBu')
 
 fig, ax = plt.subplots(figsize = (5.0, 3.75), dpi = 400)
 ax.fill_between(x_Oslo, min_val, max_val, color = my_cmap(1/4), alpha = 1, label = 'TALYS unc. span')
-lowerline_2s = Oslo_mat[:,1] - np.sqrt((Oslo_mat[:,1] - Oslo_mat[:,2])**2 + (Oslo_stat[:,1] - Oslo_stat[:,2])**2)
-upperline_2s = Oslo_mat[:,1] + np.sqrt((Oslo_mat[:,5] - Oslo_mat[:,1])**2 + (Oslo_stat[:,3] - Oslo_stat[:,1])**2)
 lowerline_1s = Oslo_mat[:,1] - np.sqrt((Oslo_mat[:,1] - Oslo_mat[:,3])**2 + (Oslo_stat[:,1] - Oslo_stat[:,2])**2)
 upperline_1s = Oslo_mat[:,1] + np.sqrt((Oslo_mat[:,4] - Oslo_mat[:,1])**2 + (Oslo_stat[:,3] - Oslo_stat[:,1])**2)
-ax.fill_between(x_Oslo, lowerline_2s, upperline_2s, color = my_cmap(2/4), alpha= 1, label = r'Oslo data, $2\sigma$')
-ax.fill_between(x_Oslo, lowerline_1s, upperline_1s, color = my_cmap(3/4), alpha= 1, label = r'Oslo data, $1\sigma$')
+ax.fill_between(x_Oslo, lowerline_1s, upperline_1s, color = my_cmap(3/4), alpha= 1, label = r'Oslo data, unc.')
 ax.plot(x_Oslo, Oslo_mat[:,1], color = my_cmap(4/4), linestyle ='-', label = 'Oslo data')
 ax.plot(x_reaclib, val_reaclib, color = 'k', linestyle = '--',label = 'JINA REACLIB')
 ax.plot(x_bruslib, val_bruslib, color = 'k', linestyle = ':', label = 'BRUSLIB')
@@ -128,9 +132,12 @@ else:
     #ax.grid()
     ax.set_yscale('log')
     ax.set_xlim([-2,110])
-    ax.set_ylim([50,14e3])
+    ax.set_ylim([50,40e3])
+    #ax.set_xlim([-2,110])
+    #ax.set_ylim([50,14e3])
     ax.legend(ncol=2)
     
 fig.tight_layout()
 fig.savefig('pictures/MACS_166Ho_' + suffix)#, transparent = True, format = 'svg')
+fig.savefig('pictures/MACS_166Ho_' + suffix + '.png', format = 'png')#, transparent = True, format = 'svg')
 fig.show()

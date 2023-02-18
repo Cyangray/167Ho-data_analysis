@@ -1,0 +1,12 @@
+projectile n
+element Ho
+mass 166
+energy n0-20.grid
+strength 9
+gnorm 1.
+ldmodel 4
+ptable 67 167 0.0
+ctable 67 167 0.0
+Nlevels 67 167 30
+outgamma y
+astro y
