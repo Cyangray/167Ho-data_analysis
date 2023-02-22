@@ -12,6 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from readlib import readreaclib, nonsmoker, rate2MACS, readastro
 import matplotlib
+from dicts_and_consts import k_B
 #plt.style.use('dark_background')
 
 matplotlib.use("pgf")
@@ -24,6 +25,7 @@ matplotlib.rcParams.update({
 })
 
 suffix = 'FG'
+omps = ['localompy', 'jlmompy']
 
 #inputs
 Z= 67
@@ -37,7 +39,7 @@ rates = False
 Ho166_mass = 165.932291209      #in a.u.
 
 #constants
-k_B = 8.617333262145e1          #Boltzmann konstant, keV*GK^-1
+#k_B = 8.617333262145e1          #Boltzmann konstant, keV*GK^-1
 
 #useful arrays
 T9range = np.array([0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.5, 2.0, 3.5, 4.0, 4.5, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0])
@@ -72,47 +74,51 @@ for ld in nld:
                
 #Import other models
 a = readreaclib(nucleus, A, reaclib_file = 'data/ncapture/reaclib')
-val_reaclib = nonsmoker(a, T9range) #rates
+mat_reaclib = nonsmoker(a, T9range) #rates
 mat_bruslib = np.loadtxt('data/ncapture/bruslib-166Ho')
 
 
-if rates:
-    #Import Oslo data, statistical and systematic errors
-    Oslo_mat = np.genfromtxt('data/generated/ncrates_' + suffix + '_whole.txt', unpack = True).T
-    x_Oslo = Oslo_mat[:,0]
-    Oslo_stat = np.loadtxt('data/generated/rate_' + suffix + '_stats.txt')
-    
-    #import other models
-    x_reaclib = T9range
-    x_bruslib = mat_bruslib[:,0]
-    val_bruslib = mat_bruslib[:,1]
-    
-    
-else:
-    #Import Oslo data, statistical and systematic errors
-    Oslo_mat = np.genfromtxt('data/generated/MACS_' + suffix + '_whole.txt', unpack = True).T
-    x_Oslo = Oslo_mat[:,0]*k_B #keV
-    Oslo_stat = np.loadtxt('data/generated/MACS_' + suffix + '_stats.txt')
-    
-    #import other models
-    x_reaclib = T9range*k_B
-    val_reaclib = rate2MACS(val_reaclib,Ho166_mass,T9range)
-    x_bruslib = mat_bruslib[:,0]*k_B
-    val_bruslib = rate2MACS(mat_bruslib[:,1],Ho166_mass,mat_bruslib[:,0])
-    
-    
+Oslo_mats = [0,0]
+Oslo_stats = [0,0]
+for i, omp in enumerate(omps):
+    if rates:
+        #Import Oslo data, statistical and systematic errors
+        Oslo_mats[i] = np.genfromtxt('data/generated/ncrates_' + omp + '_' + suffix + '_whole.txt', unpack = True).T
+        Oslo_stats[i] = np.loadtxt('data/generated/rate_' + omp + '_' + suffix + '_stats.txt')
+        
+        #import other models
+        x_reaclib = T9range
+        x_bruslib = mat_bruslib[:,0]
+        val_reaclib = mat_reaclib
+        val_bruslib = mat_bruslib[:,1]
+        
+    else:
+        #Import Oslo data, statistical and systematic errors
+        Oslo_mats[i] = np.genfromtxt('data/generated/MACS_' + omp + '_' + suffix + '_whole.txt', unpack = True).T
+        Oslo_stats[i] = np.loadtxt('data/generated/MACS_' + omp + '_' + suffix + '_stats.txt')
+        
+        #import other models
+        x_reaclib = T9range*k_B
+        val_reaclib = rate2MACS(mat_reaclib,Ho166_mass,T9range)
+        x_bruslib = mat_bruslib[:,0]*k_B
+        val_bruslib = rate2MACS(mat_bruslib[:,1],Ho166_mass,mat_bruslib[:,0])
+
 
 #plot figure
 my_cmap = matplotlib.cm.get_cmap('YlGnBu')
 #my_cmap = matplotlib.cm.get_cmap('Blues')
 #my_cmap = matplotlib.colors.ListedColormap(farger)
 
-fig, ax = plt.subplots(figsize = (5.0, 3.75), dpi = 400)
+#fig, ax = plt.subplots(figsize = (5.0, 3.75), dpi = 300)
+fig, ax = plt.subplots(dpi = 300)
+x_Oslo = Oslo_mats[0][:,0]
 ax.fill_between(x_Oslo, min_val, max_val, color = my_cmap(1/4), alpha = 1, label = 'TALYS unc. span')
-lowerline_1s = Oslo_mat[:,1] - np.sqrt((Oslo_mat[:,1] - Oslo_mat[:,3])**2 + (Oslo_stat[:,1] - Oslo_stat[:,2])**2)
-upperline_1s = Oslo_mat[:,1] + np.sqrt((Oslo_mat[:,4] - Oslo_mat[:,1])**2 + (Oslo_stat[:,3] - Oslo_stat[:,1])**2)
-ax.fill_between(x_Oslo, lowerline_1s, upperline_1s, color = my_cmap(3/4), alpha= 1, label = r'Oslo data, unc.')
-ax.plot(x_Oslo, Oslo_mat[:,1], color = my_cmap(4/4), linestyle ='-', label = 'Oslo data')
+colors = [-0.25/4, 0.25/4]
+for Oslo_mat, Oslo_stat, omp, color in zip(Oslo_mats, Oslo_stats, omps, colors):
+    lowerline_1s = Oslo_mat[:,1] - np.sqrt((Oslo_mat[:,1] - Oslo_mat[:,2])**2 + (Oslo_stat[:,1] - Oslo_stat[:,2])**2)
+    upperline_1s = Oslo_mat[:,1] + np.sqrt((Oslo_mat[:,3] - Oslo_mat[:,1])**2 + (Oslo_stat[:,3] - Oslo_stat[:,1])**2)
+    ax.fill_between(Oslo_mat[:,0], lowerline_1s, upperline_1s, color = my_cmap(3/4 + color), alpha= 1, label = r'Oslo data ' + omp +', unc.')
+    ax.plot(Oslo_mat[:,0], Oslo_mat[:,1], color = my_cmap(4/4 + color), linestyle ='-', label = 'Oslo data ' + omp)
 ax.plot(x_reaclib, val_reaclib, color = 'k', linestyle = '--',label = 'JINA REACLIB')
 ax.plot(x_bruslib, val_bruslib, color = 'k', linestyle = ':', label = 'BRUSLIB')
 
@@ -127,7 +133,7 @@ if rates:
     ax.legend(ncol=2)
 else:
     #ax.set_title('MACS for '+ ToLatex(str(A) + Z2Name(nucleus)) + '$(n,\gamma)$')
-    ax.set_xlabel(r'$k_B$ $T$ [keV]')
+    ax.set_xlabel(r'$k_B T$ [keV]')
     ax.set_ylabel('MACS [mb]')
     #ax.grid()
     ax.set_yscale('log')

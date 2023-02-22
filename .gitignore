@@ -131,10 +131,17 @@ dmypy.json
 # project specific folders
 metode2.py
 Make_dataset/167Ho-database_FG/
+Make_dataset/TALYS_exps/
 Make_dataset/167Ho-database_CT/
 Make_dataset/167Ho-saga-original/
+Make_dataset/167Ho-saga-original_vanilla/
+Make_dataset/167Ho-saga-results/
 Make_dataset/167Ho-saga-original.tar.gz
+Make_dataset/167Ho-saga-original_vanillaomp.tar.gz
 pictures/
+TALYS-calcs/
+TALYS_stats_jlmompy_FG/
+TALYS_stats_localompy_FG/
 plot_nld_animation.py
 *.png
 *.mp4

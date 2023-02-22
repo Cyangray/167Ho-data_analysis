@@ -78,7 +78,7 @@ method = 'linear'
 
 #some switches
 load_lists = True
-plot_chis = False
+plot_chis = True
 astro = True
 energy_bin = 30
 temp_bin = 7
@@ -94,18 +94,24 @@ gsf objects, and the objects in lists.
 
 Ho167_nld_lvl = import_ocl('data/rholev.cnt',a0,a1, fermi=True)
 chi2_lim_e = [Ho167_nld_lvl[int(chi2_lim[0]),0], Ho167_nld_lvl[int(chi2_lim[1]),0]]
-
+omps = ['localompy', 'jlmompy']
 if load_lists:
     nlds = np.load('data/generated/nlds_' + NLD_pathstring + '.npy', allow_pickle = True)
     gsfs = np.load('data/generated/gsfs_' + NLD_pathstring + '.npy', allow_pickle = True)
     if astro:
         ncrates = np.load('data/generated/ncrates_' + NLD_pathstring + '.npy', allow_pickle = True)
+        ncrates_localompy = np.load('data/generated/ncrates_localompy_' + NLD_pathstring + '.npy', allow_pickle = True)
+        ncrates_jlmompy = np.load('data/generated/ncrates_jlmompy_' + NLD_pathstring + '.npy', allow_pickle = True)
+        ncrates_omps = [ncrates_localompy, ncrates_jlmompy]
 else:
     #beginning the big nested loop
     gsfs = []
     nlds = []
     if astro:
         ncrates = []
+        ncrates_localompy = []
+        ncrates_jlmompy = []
+        ncrates_omps = [ncrates_localompy, ncrates_jlmompy]
     for indexb, b in enumerate(blist):
         bstr_int = "{:.2f}".format(b)
         bstr = bstr_int.translate(bstr_int.maketrans('','', '.'))
@@ -157,11 +163,14 @@ else:
                     Ggstr = str(int(Gg*10))
                     curr_gsf = gsf(database_path + new_dir_rho + '/' + new_dir_L1_L2 + '/' + Ggstr + '/strength.nrm', a0 = a0, a1 = a1, is_sigma = False, is_ocl = True)#, channels=78)
                     Bnorm = import_Bnorm(database_path + new_dir_rho + '/' + new_dir_L1_L2 + '/' + Ggstr + '/input.nrm')
+                    
                     if astro:
                         found_astro = False
                         try:
-                            curr_ncrate = astrorate(database_path + new_dir_rho + '/' + new_dir_L1_L2 + '/' + Ggstr + '/astrorate.g')
-                            objs = [curr_gsf, curr_ncrate]
+                            curr_ncrates = []
+                            for omp in omps:
+                                curr_ncrates.append(astrorate(database_path + new_dir_rho + '/' + new_dir_L1_L2 + '/' + Ggstr + '/' + omp + '/astrorate.g'))
+                            objs = [curr_gsf] + curr_ncrates
                             found_astro = True
                         except:
                             objs = [curr_gsf]
@@ -184,24 +193,17 @@ else:
                         el.D0 = new_D
                     gsfs.append(curr_gsf)
                     if astro and found_astro:
-                        ncrates.append(curr_ncrate)
+                        ncrates_localompy.append(curr_ncrates[0])
+                        ncrates_jlmompy.append(curr_ncrates[1])
+                        #ncrates = ncrates + curr_ncrates
                         
     # save lists of nlds and gsfs to file
     np.save('data/generated/nlds_' + NLD_pathstring + '.npy', nlds)
     np.save('data/generated/gsfs_' + NLD_pathstring + '.npy', gsfs)
     if astro:
         np.save('data/generated/ncrates_' + NLD_pathstring + '.npy', ncrates)
-
-
-valmatrices = [[],[]]
-if astro:
-    astrovalmatrix = calc_errors_chis(ncrates)
-    header = 'T [GK], best_fit, best_fit-sigma, best_fit+sigma' 
-    np.savetxt('data/generated/ncrates_' + NLD_pathstring + '_whole.txt',astrovalmatrix, header = header)
-
-    MACSvalmatrix = calc_errors_chis_MACS(ncrates)
-    header = 'T [GK], best_fit, best_fit-sigma, best_fit+sigma' 
-    np.savetxt('data/generated/MACS_' + NLD_pathstring + '_whole.txt',MACSvalmatrix, header = header)
+        for omp, ncrates in zip(omps, ncrates_omps):
+            np.save('data/generated/ncrates_' + omp + '_' + NLD_pathstring + '.npy', ncrates)
 
 #Save in best_fits.npy the nld-gsf couple with the least chi2 score
 nldchis = []
@@ -220,31 +222,47 @@ nldchi_argmin = np.argmin(nldchis)
 gsfchi_argmin = np.argmin(gsfchis)
 nldchimin = nldchis[nldchi_argmin]
 gsfchimin = gsfchis[gsfchi_argmin]
+least_nld_gsf = [nlds[nldchi_argmin], gsfs[gsfchi_argmin]]
 
 if astro:
-    ncrateschis = []
-    ncratesvals = []
-    for ncrate in ncrates:
-        ncrateschis.append(ncrate.chi2)
-        ncratesvals.append(ncrate.ncrate[temp_bin])
-    np.save('data/generated/temp_vals.npy', ncratesvals)
-    np.save('data/generated/temp_chis.npy', ncrateschis)
-    ncrateschi_argmin = np.argmin(ncrateschis)
-    ncrateschimin = ncrateschis[ncrateschi_argmin]
-    
+    ncrateschis = [[],[]]
+    ncratesvals = [[],[]]
+    ncrateschi_argmin = [0,0]
+    ncrateschimin = [0,0]
+    for i, ncrates in enumerate(ncrates_omps):
+        for el in ncrates:
+            ncrateschis[i].append(el.chi2)
+            ncratesvals[i].append(el.ncrate[temp_bin])
+        ncrateschi_argmin[i] = np.argmin(ncrateschis[i])
+        ncrateschimin[i] = ncrateschis[i][ncrateschi_argmin[i]]
+        least_nld_gsf.append(ncrates[ncrateschi_argmin[i]])
+
 #save best fits
-if astro:
-    least_nld_gsf = [nlds[nldchi_argmin], gsfs[gsfchi_argmin], ncrates[ncrateschi_argmin]]
-else:
-    least_nld_gsf = [nlds[nldchi_argmin], gsfs[gsfchi_argmin]]
+np.save('data/generated/best_fits_' + NLD_pathstring + '.npy', least_nld_gsf)
 
+#Save values and uncertainties in tables
+valmatrices = [[],[]]
 for lst, lab, i in zip([nlds, gsfs], ['nld_' + NLD_pathstring,'gsf_' + NLD_pathstring], [0,1]):
     valmatrices[i] = calc_errors_chis(lst)
     header = 'Energy [MeV], best_fit, best_fit-sigma, best_fit+sigma, staterr' 
     writematr = np.c_[valmatrices[i],least_nld_gsf[i].yerr]
-    np.savetxt('data/generated/' + lab + '_whole.txt', writematr, header = header)
-np.save('data/generated/best_fits_' + NLD_pathstring + '.npy', least_nld_gsf)
+    np.savetxt('data/generated/' + lab + '_whole.txt', writematr, header = header) 
+if astro:
+    astrovalmatrices = [0,0]
+    MACSvalmatrices = [0,0]
+    for i,omp,ncrates in zip([0,1], omps, ncrates_omps):
+        astrovalmatrix = calc_errors_chis(ncrates)
+        astrovalmatrices[i] = astrovalmatrix
+        header = 'T [GK], best_fit, best_fit-sigma, best_fit+sigma' 
+        np.savetxt('data/generated/ncrates_' + omp + '_' + NLD_pathstring + '_whole.txt',astrovalmatrix, header = header)
+    
+        MACSvalmatrix = calc_errors_chis_MACS(ncrates)
+        MACSvalmatrices[i] = MACSvalmatrix
+        header = 'E [keV], best_fit, best_fit-sigma, best_fit+sigma' 
+        np.savetxt('data/generated/MACS_' + omp + '_' + NLD_pathstring + '_whole.txt',MACSvalmatrix, header = header)
 
+
+#plot chi2?
 if plot_chis:
     #plot chi2s for one energy
     fig1, axs = plt.subplots(nrows = 1, ncols = 2, sharey = True)
@@ -256,18 +274,20 @@ if plot_chis:
     axs[0].plot(nldvals[nldchi_argmin],nldchimin,'k^', label=r'$\chi_{min}^2$')
     axs[1].plot(gsfvals[gsfchi_argmin],gsfchimin,'k^', label=r'$\chi_{min}^2$')
     for i,chimin in enumerate([nldchimin, gsfchimin]):
+        axs[i].plot(valmatrices[i][energy_bin,2], chimin+1, 'ro')
         axs[i].plot(valmatrices[i][energy_bin,3], chimin+1, 'ro')
-        axs[i].plot(valmatrices[i][energy_bin,4], chimin+1, 'ro')
     axs[0].axhline(y=nldchimin+1, color='r', linestyle='--', label=r'$\chi_{min}^2$+1 score')
     axs[1].axhline(y=gsfchimin+1, color='r', linestyle='--', label=r'$\chi_{min}^2$+1 score')
     rng = 2
     if astro:
-        axs2.plot(ncratesvals,ncrateschis,'b.',alpha=0.5)
-        axs2.plot(ncratesvals,ncrateschis,'b.',alpha=1)
-        axs2.plot(ncratesvals[ncrateschi_argmin],ncrateschimin,'go', label=r'$\chi_{min}^2$')
-        axs2.plot(astrovalmatrix[temp_bin,3], ncrateschimin+1, 'ro')
-        axs2.plot(astrovalmatrix[temp_bin,4], ncrateschimin+1, 'ro')
-        axs2.axhline(y=ncrateschimin+1, color='r', linestyle='--', label=r'$\chi_{min}^2$+1 score')
+        colors = ['b', 'm']
+        for i, astrovalmatrix in zip([0,1],astrovalmatrices):
+            axs2.plot(ncratesvals[i],ncrateschis[i], color = colors[i], marker = '.', linestyle = None, alpha=0.5)
+            #axs2.plot(ncratesvals[i],ncrateschis[i], color = colors[i], marker = '.', alpha=1)
+            axs2.plot(ncratesvals[i][ncrateschi_argmin[i]],ncrateschimin[i],'go', label=r'$\chi_{min}^2$')
+            axs2.plot(astrovalmatrix[temp_bin,2], ncrateschimin[i]+1, 'ro')
+            axs2.plot(astrovalmatrix[temp_bin,3], ncrateschimin[i]+1, 'ro')
+        axs2.axhline(y=ncrateschimin[0]+1, color='r', linestyle='--', label=r'$\chi_{min}^2$+1 score')
         
     #axs[0].set_title(r'$\chi^2$-scores for $\rho(E_x=$ %s MeV)'%"{:.2f}".format(nld.energies[energy_bin]))
     #axs[0].set_ylim(26.4,40)
@@ -287,7 +307,7 @@ if plot_chis:
         axs2.set_xlabel(r'$\sigma_n$ [mb]')
         #axs2.grid()
         axs2.legend()
-        axs2.set_title(r'$\chi^2$-scores for $\sigma_n(T=$ %s GK)'%"{:.2f}".format(ncrate.T[temp_bin]))
+        axs2.set_title(r'$\chi^2$-scores for $\sigma_n(T=$ %s GK)'%"{:.2f}".format(ncrates[0].T[temp_bin]))
         fig2.show()
         
     plt.tight_layout()

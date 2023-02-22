@@ -19,7 +19,7 @@ from systlib import make_E1_M1_files, make_TALYS_tab_file, load_known_gsf, D2rho
 
 #paths
 NLD_pathstring = 'FG'
-master_folder = '167Ho-saga-original/'
+master_folder = '167Ho-saga-original_jlm/'
 root_folder = '/home/francesco/Documents/164Dy-experiment/Python_normalization/'
 data_folder = root_folder + 'data/'
 dataset_folder = root_folder + 'Make_dataset/'
@@ -176,3 +176,8 @@ for rho_dir in os.listdir(dataset_folder + master_folder):
 print(f'Highest number of Gg folders in a L1L2-folder: {highest_number_of_Gg_folders}')
 print(f'antall L1L2-mapper: {counter}')
 os.chdir(root_folder)
+
+
+
+
+
